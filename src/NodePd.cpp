@@ -1,6 +1,7 @@
 #include "NodePd.hpp"
 
-namespace nodePd {
+namespace nodePd
+{
 
 /**
  * NodeJS wrapper implementation for libpd
@@ -43,9 +44,9 @@ NAN_MODULE_INIT(NodePd::Init)
 }
 
 NodePd::NodePd()
-  : initialized_(false)
+    : initialized_(false)
 {
-  audioConfig_ = (audio_config_t *) malloc(sizeof(audio_config_t));
+  audioConfig_ = (audio_config_t *)malloc(sizeof(audio_config_t));
   // default config
   audioConfig_->numInputChannels = DEFAULT_NUM_INPUT_CHANNELS;
   audioConfig_->numOutputChannels = DEFAULT_NUM_OUTPUT_CHANNELS;
@@ -61,7 +62,8 @@ NodePd::NodePd()
   pdReceiver_ = new PdReceiver(msgQueue_);
 }
 
-NodePd::~NodePd() {
+NodePd::~NodePd()
+{
   // clean the mess...
   delete paWrapper_;
   delete pdWrapper_;
@@ -72,20 +74,21 @@ NodePd::~NodePd() {
 
 NAN_METHOD(NodePd::New)
 {
-  if (!info.IsConstructCall()) {
+  if (!info.IsConstructCall())
+  {
     return Nan::ThrowError(Nan::New("NodePd::New - called without new keyword").ToLocalChecked());
   }
 
-  if (info.Length() > 0) {
+  if (info.Length() > 0)
+  {
     return Nan::ThrowError(Nan::New("NodePd::New - don't accept any arguments").ToLocalChecked());
   }
 
-  NodePd * nodePd = new NodePd();
+  NodePd *nodePd = new NodePd();
   nodePd->Wrap(info.This());
 
   info.GetReturnValue().Set(info.This());
 }
-
 
 // --------------------------------------------------------------------------
 // --------------------------------------------------------------------------
@@ -94,7 +97,6 @@ NAN_METHOD(NodePd::New)
 //
 // --------------------------------------------------------------------------
 // --------------------------------------------------------------------------
-
 
 /**
  * init pd instance and start audio.
@@ -110,31 +112,33 @@ NAN_METHOD(NodePd::New)
  */
 NAN_METHOD(NodePd::init)
 {
-  NodePd * nodePd = Nan::ObjectWrap::Unwrap<NodePd>(info.This());
+  NodePd *nodePd = Nan::ObjectWrap::Unwrap<NodePd>(info.This());
 
-  if (nodePd->initialized_ == false) {
+  if (nodePd->initialized_ == false)
+  {
     int numInputChannels = nodePd->audioConfig_->numInputChannels;
     int numOutputChannels = nodePd->audioConfig_->numOutputChannels;
     int sampleRate = nodePd->audioConfig_->sampleRate;
     int ticks = nodePd->audioConfig_->ticks;
 
     // handle arguments if definde
-    if (!info[0]->IsUndefined() && info[0]->IsObject()) {
+    if (!info[0]->IsUndefined() && info[0]->IsObject())
+    {
       v8::Local<v8::Context> ctx = Nan::GetCurrentContext();
       v8::MaybeLocal<v8::Object> maybeObj = info[0]->ToObject(ctx);
       v8::Local<v8::Object> obj = maybeObj.ToLocalChecked();
 
       v8::Local<v8::String> numInputChannelsProp =
-        Nan::New<v8::String>("numInputChannels").ToLocalChecked();
+          Nan::New<v8::String>("numInputChannels").ToLocalChecked();
 
       v8::Local<v8::String> numOutputChannelsProp =
-        Nan::New<v8::String>("numOutputChannels").ToLocalChecked();
+          Nan::New<v8::String>("numOutputChannels").ToLocalChecked();
 
       v8::Local<v8::String> numSampleRateProp =
-        Nan::New<v8::String>("sampleRate").ToLocalChecked();
+          Nan::New<v8::String>("sampleRate").ToLocalChecked();
 
       v8::Local<v8::String> ticksProp =
-        Nan::New<v8::String>("ticks").ToLocalChecked();
+          Nan::New<v8::String>("ticks").ToLocalChecked();
 
       v8::Local<v8::Value> localNumInputChannels = Nan::Get(obj, numInputChannelsProp).ToLocalChecked();
       v8::Local<v8::Value> localNumOutputChannels = Nan::Get(obj, numOutputChannelsProp).ToLocalChecked();
@@ -165,9 +169,9 @@ NAN_METHOD(NodePd::init)
     nodePd->audioConfig_->numOutputChannels = numOutputChannels;
     nodePd->audioConfig_->sampleRate = sampleRate;
     nodePd->audioConfig_->blockSize = blockSize; // size of the pd blocks (e.g. 64)
-    nodePd->audioConfig_->ticks = ticks; // number of blocks processed by pd in
+    nodePd->audioConfig_->ticks = ticks;         // number of blocks processed by pd in
     nodePd->audioConfig_->framesPerBuffer = blockSize * ticks;
-    nodePd->audioConfig_->bufferDuration = (double) blockSize * (double) ticks / (double) sampleRate;
+    nodePd->audioConfig_->bufferDuration = (double)blockSize * (double)ticks / (double)sampleRate;
 
     // init pure-data
     const bool pdInitialized = nodePd->pdWrapper_->init(nodePd->audioConfig_);
@@ -175,32 +179,34 @@ NAN_METHOD(NodePd::init)
 
     // init portaudio
     const bool paInitialized = nodePd->paWrapper_->init(
-      nodePd->audioConfig_, nodePd->pdWrapper_->getLibPdInstance());
+        nodePd->audioConfig_, nodePd->pdWrapper_->getLibPdInstance());
 
     // @note - this pretends to works but crashes when the worker exits
     v8::Local<v8::Function> dummyCallback;
-    Nan::Callback * callback = new Nan::Callback(dummyCallback);
+    Nan::Callback *callback = new Nan::Callback(dummyCallback);
 
     nodePd->backgroundProcess_ = new BackgroundProcess(
-      callback,
-      nodePd->messageCallback_,
-      nodePd->audioConfig_,
-      nodePd->msgQueue_,
-      nodePd->paWrapper_,
-      nodePd->pdWrapper_
-    );
+        callback,
+        nodePd->messageCallback_,
+        nodePd->audioConfig_,
+        nodePd->msgQueue_,
+        nodePd->paWrapper_,
+        nodePd->pdWrapper_);
 
     // launch audio loop
     AsyncQueueWorker(nodePd->backgroundProcess_);
 
     // block while time <= 0
-    while ((double) nodePd->paWrapper_->currentTime <= 0.0f) {
+    while ((double)nodePd->paWrapper_->currentTime <= 0.0f)
+    {
       std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
     nodePd->initialized_ = (pdInitialized && paInitialized);
     info.GetReturnValue().Set(nodePd->initialized_);
-  } else {
+  }
+  else
+  {
     info.GetReturnValue().Set(Nan::Null());
   }
 }
@@ -211,12 +217,10 @@ NAN_METHOD(NodePd::init)
 NAN_METHOD(NodePd::clear)
 {
   // std::cout << "clear" << std::endl;
-  NodePd * nodePd = Nan::ObjectWrap::Unwrap<NodePd>(info.This());
+  NodePd *nodePd = Nan::ObjectWrap::Unwrap<NodePd>(info.This());
   nodePd->pdWrapper_->clear(); // clear pd
   // nodePd->paWrapper_->clear(); // clear portaudio
 }
-
-
 
 // --------------------------------------------------------------------------
 // --------------------------------------------------------------------------
@@ -225,7 +229,6 @@ NAN_METHOD(NodePd::clear)
 //
 // --------------------------------------------------------------------------
 // --------------------------------------------------------------------------
-
 
 /**
  * open a pd patch
@@ -240,14 +243,17 @@ NAN_METHOD(NodePd::clear)
  */
 NAN_METHOD(NodePd::openPatch)
 {
-  NodePd* nodePd = Nan::ObjectWrap::Unwrap<NodePd>(info.This());
+  NodePd *nodePd = Nan::ObjectWrap::Unwrap<NodePd>(info.This());
 
-  if (!info[0]->IsString() || !info[1]->IsString()) {
+  if (!info[0]->IsString() || !info[1]->IsString())
+  {
     v8::Local<v8::String> errMsg =
-      Nan::New("Invalid arguments: `filename` and `path` must be string").ToLocalChecked();
+        Nan::New("Invalid arguments: `filename` and `path` must be string").ToLocalChecked();
 
     return Nan::ThrowTypeError(errMsg);
-  } else {
+  }
+  else
+  {
 
     v8::Local<v8::String> localFilename = Nan::To<v8::String>(info[0]).ToLocalChecked();
     Nan::Utf8String nanFilename(localFilename);
@@ -269,16 +275,16 @@ NAN_METHOD(NodePd::openPatch)
     v8::Local<v8::String> dollarZeroProp = Nan::New<v8::String>("$0").ToLocalChecked();
 
     v8::Local<v8::Boolean> isValid =
-      Nan::New<v8::Boolean>((bool) patchInfos.isValid);
+        Nan::New<v8::Boolean>((bool)patchInfos.isValid);
 
     v8::Local<v8::String> filename =
-      Nan::New<v8::String>(patchInfos.filename).ToLocalChecked();
+        Nan::New<v8::String>(patchInfos.filename).ToLocalChecked();
 
     v8::Local<v8::String> path =
-      Nan::New<v8::String>(patchInfos.path).ToLocalChecked();
+        Nan::New<v8::String>(patchInfos.path).ToLocalChecked();
 
     v8::Local<v8::Integer> dollarZero =
-      Nan::New<v8::Integer>(patchInfos.dollarZero);
+        Nan::New<v8::Integer>(patchInfos.dollarZero);
 
     Nan::Set(patch, isValidProp, isValid);
     Nan::Set(patch, filenameProp, filename);
@@ -296,9 +302,10 @@ NAN_METHOD(NodePd::openPatch)
  */
 NAN_METHOD(NodePd::closePatch)
 {
-  NodePd* nodePd = Nan::ObjectWrap::Unwrap<NodePd>(info.This());
+  NodePd *nodePd = Nan::ObjectWrap::Unwrap<NodePd>(info.This());
 
-  if (info[0]->IsObject()) {
+  if (info[0]->IsObject())
+  {
     v8::Local<v8::Context> ctx = Nan::GetCurrentContext();
     v8::MaybeLocal<v8::Object> maybePatch = info[0]->ToObject(ctx);
     v8::Local<v8::Object> patch = maybePatch.ToLocalChecked();
@@ -308,31 +315,34 @@ NAN_METHOD(NodePd::closePatch)
     v8::Local<v8::String> pathProp = Nan::New<v8::String>("path").ToLocalChecked();
 
     if (
-      !Nan::HasOwnProperty(patch, dollarZeroProp).FromJust() ||
-      !Nan::HasOwnProperty(patch, isValidProp).FromJust() ||
-      !Nan::HasOwnProperty(patch, filenameProp).FromJust() ||
-      !Nan::HasOwnProperty(patch, pathProp).FromJust()
-    ) {
+        !Nan::HasOwnProperty(patch, dollarZeroProp).FromJust() ||
+        !Nan::HasOwnProperty(patch, isValidProp).FromJust() ||
+        !Nan::HasOwnProperty(patch, filenameProp).FromJust() ||
+        !Nan::HasOwnProperty(patch, pathProp).FromJust())
+    {
       Nan::ThrowError(Nan::New("Invalid patch").ToLocalChecked());
-    } else {
-      int dollarZero = patch->Get(dollarZeroProp)->NumberValue();
+    }
+    else
+    {
+      int dollarZero = patch->Get(dollarZeroProp)->NumberValue(ctx).FromJust();
       patch_infos_t patchInfos = nodePd->pdWrapper_->closePatch(dollarZero);
 
       // close patch only modify `isValid` and `DollarZero` props (cf. pd::Patch)
       v8::Local<v8::Boolean> localIsValid =
-        Nan::New<v8::Boolean>((bool) patchInfos.isValid);
+          Nan::New<v8::Boolean>((bool)patchInfos.isValid);
 
       v8::Local<v8::Integer> newDollarZero =
-        Nan::New<v8::Integer>(patchInfos.dollarZero);
+          Nan::New<v8::Integer>(patchInfos.dollarZero);
 
       Nan::Set(patch, isValidProp, localIsValid);
       Nan::Set(patch, dollarZeroProp, newDollarZero);
     }
-  } else {
+  }
+  else
+  {
     Nan::ThrowError(Nan::New("patch is not an object").ToLocalChecked());
   }
 }
-
 
 /**
  * add the given path to the pd search path.
@@ -367,8 +377,9 @@ NAN_METHOD(NodePd::clearSearchPath) {}
  *
  * @note - don't implement typed messages for now (cf. `finishMessage` API)
  */
-NAN_METHOD(NodePd::send) {
-  NodePd * nodePd = Nan::ObjectWrap::Unwrap<NodePd>(info.This());
+NAN_METHOD(NodePd::send)
+{
+  NodePd *nodePd = Nan::ObjectWrap::Unwrap<NodePd>(info.This());
 
   // get channel
   if (!info[0]->IsString())
@@ -378,15 +389,16 @@ NAN_METHOD(NodePd::send) {
   Nan::Utf8String nanChannel(localChannel);
   std::string channel(*nanChannel);
 
-
   double time = 0.;
 
-  if (info[2]->IsNumber()) {
+  if (info[2]->IsNumber())
+  {
     v8::Local<v8::Number> number = Nan::To<v8::Number>(info[2]).ToLocalChecked();
     time = number->Value();
   }
 
-  if (info[1]->IsString()) {
+  if (info[1]->IsString())
+  {
     // @todo - test when receive is implemented
     v8::Local<v8::String> localSymbol = Nan::To<v8::String>(info[1]).ToLocalChecked();
     Nan::Utf8String nanSymbol(localSymbol);
@@ -394,32 +406,41 @@ NAN_METHOD(NodePd::send) {
 
     pd_scheduled_msg_t msg(channel, time, symbol);
     nodePd->backgroundProcess_->addScheduledMessage(msg);
-
-  } else if (info[1]->IsNumber()) {
+  }
+  else if (info[1]->IsNumber())
+  {
 
     v8::Local<v8::Number> number = Nan::To<v8::Number>(info[1]).ToLocalChecked();
     const float num = number->Value();
 
     pd_scheduled_msg_t msg(channel, time, num);
     nodePd->backgroundProcess_->addScheduledMessage(msg);
-
-  } else if (info[1]->IsArray()) {
+  }
+  else if (info[1]->IsArray())
+  {
 
     v8::Local<v8::Array> arr = v8::Local<v8::Array>::Cast(info[1]);
     const int len = arr->Length();
 
-    if (len > 0) {
+    if (len > 0)
+    {
       pd::List list;
 
-      for (int i = 0; i < len; i++) {
-        if (Nan::Has(arr, i).FromJust()) {
+      for (int i = 0; i < len; i++)
+      {
+        if (Nan::Has(arr, i).FromJust())
+        {
           // @note - ignore everything non float or string
           v8::Local<v8::Value> localValue = Nan::Get(arr, i).ToLocalChecked();
 
-          if (localValue->IsNumber()) {
-            float num = localValue->NumberValue();
+          if (localValue->IsNumber())
+          {
+            v8::Local<v8::Context> ctx = Nan::GetCurrentContext();
+            float num = localValue->NumberValue(ctx).FromJust();
             list.addFloat(num);
-          } else if (localValue->IsString()) {
+          }
+          else if (localValue->IsString())
+          {
             Nan::Utf8String nanSymbol(localValue);
             std::string symbol(*nanSymbol);
             list.addSymbol(symbol);
@@ -430,18 +451,21 @@ NAN_METHOD(NodePd::send) {
       pd_scheduled_msg_t msg(channel, time, list);
       nodePd->backgroundProcess_->addScheduledMessage(msg);
     }
-  } else {
+  }
+  else
+  {
     pd_scheduled_msg_t msg(channel, time);
     nodePd->backgroundProcess_->addScheduledMessage(msg);
   }
-
 }
 
-NAN_METHOD(NodePd::arraySize) {
-  NodePd * nodePd = Nan::ObjectWrap::Unwrap<NodePd>(info.This());
+NAN_METHOD(NodePd::arraySize)
+{
+  NodePd *nodePd = Nan::ObjectWrap::Unwrap<NodePd>(info.This());
 
   // ignore * else
-  if (info[0]->IsString()) {
+  if (info[0]->IsString())
+  {
     v8::Local<v8::String> localName = Nan::To<v8::String>(info[0]).ToLocalChecked();
     Nan::Utf8String nanName(localName);
     std::string name(*nanName);
@@ -449,19 +473,23 @@ NAN_METHOD(NodePd::arraySize) {
     const int size = nodePd->pdWrapper_->arraySize(name);
 
     v8::Local<v8::Integer> localSize =
-      Nan::New<v8::Integer>(size);
+        Nan::New<v8::Integer>(size);
 
     info.GetReturnValue().Set(localSize);
   }
 }
 
-NAN_METHOD(NodePd::writeArray) {
-  if (!info[0]->IsString() || !info[1]->IsTypedArray()) {
+NAN_METHOD(NodePd::writeArray)
+{
+  if (!info[0]->IsString() || !info[1]->IsTypedArray())
+  {
     v8::Local<v8::String> errMsg =
-      Nan::New("Invalid arguments: `name` must be a string and `source` must be a Float32Array").ToLocalChecked();
+        Nan::New("Invalid arguments: `name` must be a string and `source` must be a Float32Array").ToLocalChecked();
     Nan::ThrowTypeError(errMsg);
-  } else {
-    NodePd * nodePd = Nan::ObjectWrap::Unwrap<NodePd>(info.This());
+  }
+  else
+  {
+    NodePd *nodePd = Nan::ObjectWrap::Unwrap<NodePd>(info.This());
 
     v8::Local<v8::String> localName = Nan::To<v8::String>(info[0]).ToLocalChecked();
     Nan::Utf8String nanName(localName);
@@ -470,7 +498,7 @@ NAN_METHOD(NodePd::writeArray) {
     v8::Local<v8::TypedArray> localArray = v8::Local<v8::TypedArray>::Cast(info[1]);
     Nan::TypedArrayContents<float> typed(localArray);
 
-    std::vector<float> source(*typed, *typed + typed.length());//  = *typedd;
+    std::vector<float> source(*typed, *typed + typed.length()); //  = *typedd;
 
     // @todo length, offset
     // writeLen (default=-1)
@@ -479,7 +507,7 @@ NAN_METHOD(NodePd::writeArray) {
     const bool result = nodePd->pdWrapper_->writeArray(name, source);
 
     v8::Local<v8::Integer> v8result =
-      Nan::New<v8::Integer>(result);
+        Nan::New<v8::Integer>(result);
 
     info.GetReturnValue().Set(v8result);
   }
@@ -511,14 +539,14 @@ NAN_METHOD(NodePd::writeArray) {
 
 // }
 
-
-
 // kind of private method - document only receive(channel, callback) wrapper
-NAN_METHOD(NodePd::subscribe) {
-  NodePd * nodePd = Nan::ObjectWrap::Unwrap<NodePd>(info.This());
+NAN_METHOD(NodePd::subscribe)
+{
+  NodePd *nodePd = Nan::ObjectWrap::Unwrap<NodePd>(info.This());
 
   // ignore * else
-  if (info[0]->IsString()) {
+  if (info[0]->IsString())
+  {
     v8::Local<v8::String> localChannel = Nan::To<v8::String>(info[0]).ToLocalChecked();
     Nan::Utf8String nanChannel(localChannel);
     std::string channel(*nanChannel);
@@ -527,11 +555,13 @@ NAN_METHOD(NodePd::subscribe) {
   }
 }
 
-NAN_METHOD(NodePd::unsubscribe) {
-  NodePd * nodePd = Nan::ObjectWrap::Unwrap<NodePd>(info.This());
+NAN_METHOD(NodePd::unsubscribe)
+{
+  NodePd *nodePd = Nan::ObjectWrap::Unwrap<NodePd>(info.This());
 
   // ignore * else
-  if (info[0]->IsString()) {
+  if (info[0]->IsString())
+  {
     v8::Local<v8::String> localChannel = Nan::To<v8::String>(info[0]).ToLocalChecked();
     Nan::Utf8String nanChannel(localChannel);
     std::string channel(*nanChannel);
@@ -541,18 +571,20 @@ NAN_METHOD(NodePd::unsubscribe) {
 }
 
 // @pseudo-private
-NAN_METHOD(NodePd::_setMessageCallback) {
-  NodePd * nodePd = Nan::ObjectWrap::Unwrap<NodePd>(info.This());
+NAN_METHOD(NodePd::_setMessageCallback)
+{
+  NodePd *nodePd = Nan::ObjectWrap::Unwrap<NodePd>(info.This());
 
-  if (info[0]->IsFunction()) {
-    Nan::Callback * callback = new Nan::Callback(info[0].As<v8::Function>());
+  if (info[0]->IsFunction())
+  {
+    Nan::Callback *callback = new Nan::Callback(info[0].As<v8::Function>());
     nodePd->messageCallback_ = callback;
   }
 }
 
-
-NAN_PROPERTY_GETTER(NodePd::currentTime) {
-  NodePd * nodePd = Nan::ObjectWrap::Unwrap<NodePd>(info.This());
+NAN_PROPERTY_GETTER(NodePd::currentTime)
+{
+  NodePd *nodePd = Nan::ObjectWrap::Unwrap<NodePd>(info.This());
   double currentTime = nodePd->paWrapper_->currentTime;
 
   v8::Local<v8::Number> ret = Nan::New<v8::Number>(currentTime);
@@ -560,11 +592,4 @@ NAN_PROPERTY_GETTER(NodePd::currentTime) {
   info.GetReturnValue().Set(ret);
 }
 
-}; // namespace
-
-
-
-
-
-
-
+}; // namespace nodePd
