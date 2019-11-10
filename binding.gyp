@@ -145,7 +145,7 @@
         [
           'OS=="linux"', {
             "conditions": [
-              ['target_arch=="x86_64"', {
+              ['target_arch=="x64"', {
                 "link_settings": {
                   "libraries": [
                     "<@(module_root_dir)/build/Release/libportaudio.so.2",
