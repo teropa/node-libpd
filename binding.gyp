@@ -145,7 +145,7 @@
         [
           'OS=="linux"', {
             "conditions": [
-              ['target_arch=="x64"', {
+              ['target_arch=="x 64"', {
                 "link_settings": {
                   "libraries": [
                     "<@(module_root_dir)/build/Release/libportaudio.so.2",
@@ -161,7 +161,7 @@
                   {
                     "destination": "build/Release/",
                     "files": [
-                      "<@(module_root_dir)/portaudio/lib-armhf/libportaudio.so.2"
+                      "/usr/local/lib/libportaudio.so.2"
                     ]
                   },
                   {
