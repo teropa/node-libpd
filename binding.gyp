@@ -161,12 +161,6 @@
                   {
                     "destination": "build/Release/",
                     "files": [
-                      "/usr/local/lib/libportaudio.so.2.0.0"
-                    ]
-                  },
-                  {
-                    "destination": "build/Release/",
-                    "files": [
                       "/usr/local/lib/libportaudio.so.2"
                     ]
                   },
