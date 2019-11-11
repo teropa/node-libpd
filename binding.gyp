@@ -148,7 +148,7 @@
               ['target_arch=="x64"', {
                 "link_settings": {
                   "libraries": [
-                    "<@(module_root_dir)/build/Release/libportaudio.so.2",
+                    "<@(module_root_dir)/build/Release/libportaudio.so.2.0.0",
                     "<@(module_root_dir)/build/Release/libpd.so",
                   ],
                   "ldflags": [
@@ -161,7 +161,7 @@
                   {
                     "destination": "build/Release/",
                     "files": [
-                      "/usr/local/lib/libportaudio.so.2"
+                      "/usr/local/lib/libportaudio.so.2.0.0"
                     ]
                   },
                   {
